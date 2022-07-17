@@ -90,7 +90,7 @@ def g_bus_get_sync(bus_type: GBusType,
         g_error_free(error)
         return Result(error=err)
     else:
-        return Result(val)
+        return Result(c_void_p(val))
 
 
 GDBusConnection_p = c_void_p
@@ -128,7 +128,7 @@ def g_dbus_proxy_new_sync(connection: GDBusConnection_p, flags: GDBusProxyFlags,
         g_error_free(error)
         return Result(error=err)
     else:
-        return Result(proxy)
+        return Result(c_void_p(proxy))
 
 
 ___Gio___.g_dbus_connection_get_unique_name.restype = c_char_p
@@ -151,24 +151,25 @@ ___Gio___.g_variant_builder_new.argtypes = [c_void_p]
 
 
 def g_variant_builder_new(v_type: GVariantType_p) -> GVariantBuilder_p:
-    return ___Gio___.g_variant_builder_new(v_type)
+    return c_void_p(___Gio___.g_variant_builder_new(v_type))
 
 
-def __to_va(*args):
-    output = []
-    argtypes = []
-    for arg in args:
-        if arg is str:
-            # arg_ = cast(arg, c_char_p)
+def ___VA___(args, argtypes, *vargs):
+    for arg in vargs:
+        if isinstance(arg, str):
+            arg_ = cast(arg.encode('utf-8'), c_char_p)
             argtypes.append(c_char_p)
-        elif arg is int:
-            # arg_ = cast(arg, c_int)
+        elif isinstance(arg, int):
+            arg_ = arg
             argtypes.append(c_int)
+        elif isinstance(arg, c_void_p):
+            arg_ = arg
+            argtypes.append(c_void_p)
         else:
             arg_ = cast(arg, c_void_p)
             argtypes.append(c_void_p)
-        output.append(arg)
-    return output, argtypes
+        args.append(arg_)
+    return args, argtypes
 
 
 ___Gio___.g_variant_builder_add.restype = c_void_p
@@ -179,12 +180,9 @@ ___Gio___.g_variant_builder_add.restype = c_void_p
 def g_variant_builder_add(builder: GVariantBuilder_p, format_string: str, *args):
     argtypes_ = [c_void_p, c_char_p]
     args_ = [builder, format_string.encode('utf-8')]
-    va_, va_argtypes_ = __to_va(*args)
-    args_.extend(va_)
-    argtypes_.extend(va_argtypes_)
-
+    args_, argtypes_ = ___VA___(args_, argtypes_, *args)
     ___Gio___.g_variant_builder_add.argtypes = argtypes_
-    return ___Gio___.g_variant_builder_add(*args_)
+    return c_void_p(___Gio___.g_variant_builder_add(*args_))
 
 
 GVariant_p = c_void_p
@@ -193,7 +191,7 @@ ___Gio___.g_variant_new_string.argtypes = [c_char_p]
 
 
 def g_variant_new_string(variant_string: str) -> GVariant_p:
-    return ___Gio___.g_variant_new_string(variant_string.encode('utf-8'))
+    return c_void_p(___Gio___.g_variant_new_string(variant_string.encode('utf-8')))
 
 
 # Note
@@ -214,7 +212,7 @@ GDestroyNotify = CFunctionType
 G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE = 1
 ___Gio___.g_dbus_connection_signal_subscribe.restype = c_int
 ___Gio___.g_dbus_connection_signal_subscribe.argtypes = [c_void_p, c_char_p, c_char_p, c_char_p, c_char_p, c_char_p,
-                                                         c_int]
+                                                         c_int, c_void_p, c_void_p, c_void_p]
 
 
 def g_dbus_connection_signal_subscribe(connection: GDBusConnection_p,
@@ -224,7 +222,7 @@ def g_dbus_connection_signal_subscribe(connection: GDBusConnection_p,
                                        object_path: str,
                                        arg0: str,
                                        flags: GDBusSignalFlags,
-                                       callback: GDBusSignalCallback,
+                                       callback,
                                        user_data: c_void_p,
                                        user_data_free_func: GDestroyNotify) -> c_int:
     arg0_ = arg0.encode('utf-8') if arg0 else None
@@ -238,17 +236,16 @@ def g_dbus_connection_signal_subscribe(connection: GDBusConnection_p,
 def g_variant_get(value: GVariant_p, format_string: str, *args):
     ___Gio___.g_variant_get.restype = c_void_p
     ___Gio___.g_variant_get.argtypes = [c_void_p, c_char_p]
+    return c_void_p(___Gio___.g_variant_get(value, format_string, *args))
 
-    return ___Gio___.g_variant_get(value, format_string, *args)
 
+
+GDBusCallFlags = c_int
+G_DBUS_CALL_FLAGS_NONE = 0
 
 ___Gio___.g_dbus_proxy_call_sync.restype = c_void_p
 ___Gio___.g_dbus_proxy_call_sync.argtypes = [c_void_p, c_char_p, c_void_p, c_int, c_int, c_void_p,
                                              POINTER(POINTER(GError))]
-GDBusCallFlags = c_int
-G_DBUS_CALL_FLAGS_NONE = 0
-
-
 def g_dbus_proxy_call_sync(proxy: GDBusProxy_p,
                            method_name: str,
                            parameters: GVariant_p,
@@ -264,40 +261,32 @@ def g_dbus_proxy_call_sync(proxy: GDBusProxy_p,
         g_error_free(error)
         return Result(error=err)
     else:
-        return Result(proxy)
+        return Result(c_void_p(variant))
 
 
 ___Gio___.g_variant_new.restype = c_void_p
-
-
 def g_variant_new(format_string: str, *args):
     argtypes_ = [c_char_p]
     args_ = [format_string.encode('utf-8')]
-    va_, va_argtypes_ = __to_va(*args)
-    args_.extend(va_)
-    argtypes_.extend(va_argtypes_)
+    args_, argtypes_ = ___VA___(args_, argtypes_, *args)
     ___Gio___.g_variant_new.argtypes = argtypes_
-    return ___Gio___.g_variant_new(*args_)
+    return c_void_p(___Gio___.g_variant_new(*args_))
 
 
 ___Gio___.g_cancellable_new.restype = c_void_p
-
-
 def g_cancellable_new():
-    return ___Gio___.g_cancellable_new()
+    return c_void_p(___Gio___.g_cancellable_new())
 
 
-___Gio___.g_main_loop_new.restype = c_void_p
-___Gio___.g_main_loop_new.argtypes = [c_void_p, c_bool]
+
 GMainContext_p = c_void_p
 GMainLoop_p = c_void_p
-
-
+___Gio___.g_main_loop_new.restype = c_void_p
+___Gio___.g_main_loop_new.argtypes
 def g_main_loop_new(context: GMainContext_p, is_running: bool):
-    return ___Gio___.g_main_loop_new(context, is_running)
+    return c_void_p(___Gio___.g_main_loop_new(context, is_running))
+
 
 ___Gio___.g_main_loop_run.argtypes = [c_void_p]
-
-
 def g_main_loop_run(loop: GMainLoop_p):
-    return ___Gio___.g_main_loop_run(loop)
+    return c_void_p(___Gio___.g_main_loop_run(loop))

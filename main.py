@@ -9,15 +9,16 @@
 # from egl import *
 
 
-
-
 # Framebuffer Format Modifiers https://youtu.be/g5T5wSCXkH4?t=3131
 from portal import portal
+
+from ctypes import *
+
+libc = CDLL("libc.so.6")
 
 
 def main():
     portal()
-
 
 # client_extensions = egl.eglQueryString(egl.EGL_NO_DISPLAY, egl.EGL_EXTENSIONS)
 # client_extensions = client_extensions.split(" ");
