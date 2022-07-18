@@ -242,8 +242,6 @@ def g_variant_get(value: GVariant_p, format_string: str, *args):
     argtypes_ = [c_void_p, c_char_p]
     args_ = [value, format_string.encode('utf-8')]
     args_, argtypes_ = ___VA___(args_, argtypes_, *args)
-    #print(args_)
-    #print(argtypes_)
     ___Gio___.g_variant_get.restype = c_void_p
     ___Gio___.g_variant_get.argtypes = argtypes_
     ___Gio___.g_variant_get(*args_)
@@ -326,18 +324,88 @@ def g_variant_dup_string(value: GVariant_p, length: POINTER(c_ulonglong)):
     return ___Gio___.g_variant_dup_string(value, length).decode('utf-8')
 
 
-___Gio___.g_variant_new_uint32.restype=c_void_p
-___Gio___.g_variant_new_uint32.argtypes=[c_uint32]
+___Gio___.g_variant_new_uint32.restype = c_void_p
+___Gio___.g_variant_new_uint32.argtypes = [c_uint32]
+
+
 def g_variant_new_uint32(value) -> GVariant_p:
     return c_void_p(___Gio___.g_variant_new_uint32(c_uint32(value)))
 
 
-___Gio___.g_variant_new_boolean.restype=c_void_p
-___Gio___.g_variant_new_boolean.argtypes=[c_bool]
+___Gio___.g_variant_new_boolean.restype = c_void_p
+___Gio___.g_variant_new_boolean.argtypes = [c_bool]
+
+
 def g_variant_new_boolean(value: bool) -> GVariant_p:
     return c_void_p(___Gio___.g_variant_new_boolean(value))
 
-___Gio___.g_dbus_proxy_get_cached_property.restype=c_void_p
-___Gio___.g_dbus_proxy_get_cached_property.argtypes=[c_void_p, c_char_p]
+
+___Gio___.g_dbus_proxy_get_cached_property.restype = c_void_p
+___Gio___.g_dbus_proxy_get_cached_property.argtypes = [c_void_p, c_char_p]
+
+
 def g_dbus_proxy_get_cached_property(proxy: GDBusProxy_p, property_name: str) -> GVariant_p:
     return c_void_p(___Gio___.g_dbus_proxy_get_cached_property(proxy, property_name.encode('utf-8')))
+
+
+___Gio___.g_variant_lookup.restype = c_bool
+
+
+def g_variant_lookup(dictionary: GVariant_p, key: str, format_string: str, *args):
+    argtypes_ = [c_void_p, c_char_p, c_char_p]
+    args_ = [dictionary, key.encode('utf-8'), format_string.encode('utf-8')]
+    args_, argtypes_ = ___VA___(args_, argtypes_, *args)
+    ___Gio___.g_variant_lookup.argtypes = argtypes_
+    return ___Gio___.g_variant_lookup(*args_)
+
+
+GVariantIter_p = c_void_p
+___Gio___.g_variant_iter_next.restype = c_bool
+
+
+def g_variant_iter_next(iter: GVariantIter_p, format_string: str, *args):
+    argtypes_ = [c_void_p, c_char_p]
+    args_ = [iter, format_string.encode('utf-8')]
+    args_, argtypes_ = ___VA___(args_, argtypes_, *args)
+    ___Gio___.g_variant_iter_next.argtypes = argtypes_
+    return ___Gio___.g_variant_iter_next(*args_)
+
+
+GUnixFDList_p = c_void_p
+___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync.restype = c_void_p
+___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync.argtypes =[c_void_p, c_char_p,
+                                                              c_void_p, c_int, c_int,
+                                                              c_void_p, c_void_p,
+                                                              c_void_p, POINTER(POINTER(GError))]
+def g_dbus_proxy_call_with_unix_fd_list_sync(proxy: GDBusProxy_p,
+                                             method_name: str,
+                                             parameters: GVariant_p,
+                                             flags: GDBusCallFlags,
+                                             timeout_msec: int,
+                                             fd_list: GUnixFDList_p,
+                                             out_fd_list: GUnixFDList_p,
+                                             cancellable: GCancellable_p):
+    error = POINTER(GError)()
+    variant = ___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync(proxy, method_name.encode('utf-8'),
+                                                                 parameters, flags,
+                                                                 timeout_msec, fd_list, out_fd_list,
+                                                                 cancellable, byref(error))
+    if variant is None:
+        err = error.contents.todict()
+        g_error_free(error)
+        return Result(error=err)
+    else:
+        return Result(c_void_p(variant))
+
+
+___Gio___.g_unix_fd_list_get.restype= c_int
+___Gio___.g_unix_fd_list_get.argtypes = [c_void_p, c_int, POINTER(POINTER(GError))]
+def g_unix_fd_list_get(fdlist: GUnixFDList_p, index: int):
+    error = POINTER(GError)()
+    int_ = ___Gio___.g_unix_fd_list_get(fdlist, index, byref(error))
+    if int_ is None:
+        err = error.contents.todict()
+        g_error_free(error)
+        return Result(error=err)
+    else:
+        return Result(int_)
