@@ -125,6 +125,7 @@ def open_pipewire_remote():
         print("Error: %s", pw_fd_.error(), file=sys.stderr)
         cleanup()
         return
+    pw_fd_ = pw_fd_.unwrap_unchecked()
     on_portal_done()
     
 
