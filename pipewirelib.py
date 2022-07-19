@@ -85,7 +85,7 @@ class SPASourceP(c_void_p):
 
 class SPALoopUtilsMethods(Structure):
     _fields_ = [
-        ("version", c_int32),
+        ("version", c_uint32),
         ("add_io", c_void_p),
         ("update_io", c_void_p),
         ("add_idle", c_void_p),
@@ -97,6 +97,20 @@ class SPALoopUtilsMethods(Structure):
         ("add_signal", c_void_p),
         ("destroy_source", c_void_p)
     ]
+
+class PWCoreMethods(Structure):
+    _fields_ = [
+        ("version", c_uint32),
+        ("add_listener", c_void_p),
+        ("hello", c_void_p),
+        ("sync", c_void_p),
+        ("pong", c_void_p),
+        ("error", c_void_p),
+        ("get_registry", c_void_p),
+        ("create_object", c_void_p),
+        ("destroy", c_void_p)
+    ]
+
 
 class PWCoreEvents(Structure):
     info_types = [c_void_p, c_void_p]
@@ -200,23 +214,35 @@ def pw_proxy_add_listener(pw_proxy: PWCoreP, listener: SPAHook, events: PWCoreEv
     ___PW___.pw_proxy_add_listener(pw_proxy, byref(listener), byref(events), byref(data))
 
 
-def pw_loop_add_event(pw_loop: PWLoopP, user_method: FPOINTER, userdata) -> SPASourceP:
+def pw_loop_add_event(pw_loop: PWLoopP, user_method: FPOINTER, user_data) -> SPASourceP:
+    """WARNING: A copy of *pipewire* lib macro. It may break"""
     loop: POINTER(PWLoop) = cast(pw_loop.value, POINTER(PWLoop))
     utils: POINTER(SPALoopUtils) = cast(loop.contents.utils, POINTER(SPALoopUtils))
     iface: SPAInterface = utils.contents.iface
     cb: SPACallbacks = iface.cb
-    _f = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
-    add_event = CFUNCTYPE(SPASourceP, c_void_p, c_void_p, c_void_p)(_f.contents.add_event)
-    return add_event(cb.data, user_method, byref(userdata))
+    fp = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
+    add_event = CFUNCTYPE(SPASourceP, c_void_p, c_void_p, c_void_p)(fp.contents.add_event)
+    return add_event(cb.data, user_method, byref(user_data))
+
 
 def pw_loop_signal_event(pw_loop: PWLoopP, source: SPASourceP) -> int:
+    """WARNING: A copy of *pipewire* lib macro. It may break"""
     loop: POINTER(PWLoop) = cast(pw_loop.value, POINTER(PWLoop))
     utils: POINTER(SPALoopUtils) = cast(loop.contents.utils, POINTER(SPALoopUtils))
     iface: SPAInterface = utils.contents.iface
     cb: SPACallbacks = iface.cb
-    _f = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
-    signal_event = CFUNCTYPE(c_int, c_void_p, SPASourceP)(_f.contents.signal_event)
+    fp = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
+    signal_event = CFUNCTYPE(c_int, c_void_p, SPASourceP)(fp.contents.signal_event)
     return signal_event(cb.data, source)
+
+
+def pw_core_sync(pw_core:PWCoreP, _id: int, seq: int) -> int:
+    """WARNING: A copy of *pipewire* lib macro. It may break"""
+    iface = cast(pw_core.value, POINTER(SPAInterface))
+    cb = iface.contents.cb
+    fp = cast(cb.funcs, POINTER(PWCoreMethods))
+    core_sync = CFUNCTYPE(c_int, c_uint32, c_int)(fp.contents.sync)
+    return core_sync(cb.data, _id, seq)
 
 
 PW_VERSION_CORE_EVENTS = 0
