@@ -1,5 +1,7 @@
 import sys
 from random import randrange
+
+import pipewire
 from gio import *
 
 kDesktopBusName = "org.freedesktop.portal.Desktop"
@@ -103,7 +105,8 @@ restore_token_ = ""
 def cleanup():
     print("CLEANUP")
 
-
+global pw_fd_
+global pw_stream_node_id_
 def open_pipewire_remote():
     print("PIPEWIRE\n")
     builder = g_variant_builder_new(G_VARIANT_TYPE_VARDICT)
@@ -116,12 +119,13 @@ def open_pipewire_remote():
     variant = variant.unwrap_unchecked()
     index = c_int32(0)
     g_variant_get(variant, "(h)", byref(index))
-    pw_fd = g_unix_fd_list_get(outlist, index)
-    if pw_fd == -1 or pw_fd.error():
-        print("Error: %s", pw_fd.error(), file=sys.stderr)
+    global pw_fd_
+    pw_fd_ = g_unix_fd_list_get(outlist, index)
+    if pw_fd_ == -1 or pw_fd_.error():
+        print("Error: %s", pw_fd_.error(), file=sys.stderr)
         cleanup()
         return
-    print(pw_fd.unwrap_unchecked())
+    on_portal_done()
     
 
 @CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
@@ -153,7 +157,8 @@ def start_request_response_signal_handler(
             g_variant_get(variant, "(u@a{sv})", byref(stream_id), byref(options))
             if g_variant_lookup(options, "source_type", "u", byref(type_)):
                 capture_source_type = type_
-            pw_stream_node_id = stream_id
+            global pw_stream_node_id_
+            pw_stream_node_id_ = stream_id
             break
     if g_variant_lookup(response_data, "restore_token", "s", byref(restore_token_)):
         restore_token = restore_token_
@@ -181,7 +186,9 @@ def start_request():
 
 
 def on_portal_done():
-    pass
+    global pw_fd_
+    global pw_stream_node_id_
+    pipewire.process(pw_fd_, pw_stream_node_id_)
 
 
 @CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
@@ -304,7 +311,7 @@ def portal():
     if connection.is_ok():
         global connection_
         connection_ = connection.unwrap_unchecked()
-        screencast_proxy = g_dbus_proxy_new_sync(connection_,
+        screencast_proxy = g_dbus_proxy_new_sync(GDBusConnectionP(connection_.value),
                                                  GDBusProxyFlags.G_DBUS_PROXY_FLAGS_NONE,
                                                  None, kDesktopBusName, kDesktopPath, scast_iface, None)
         screencast_proxy_ = screencast_proxy.unwrap()

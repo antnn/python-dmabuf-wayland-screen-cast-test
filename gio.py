@@ -94,13 +94,17 @@ def g_bus_get_sync(bus_type: GBusType,
     else:
         return Result(c_void_p(val))
 
+class GDBusConnectionP(c_void_p):
+    pass
+    #def __init__(self, *args, **kwargs):
+    #    super().__init__(*args, *kwargs)
 
 GDBusConnection_p = c_void_p
 GDBusInterfaceInfo_p = c_void_p
 GDBusProxy_p = c_void_p
 ___Gio___.g_dbus_proxy_new_sync.restype = GDBusProxy_p
 ___Gio___.g_dbus_proxy_new_sync.argtypes = [
-    GDBusConnection_p,
+    GDBusConnectionP, #GDBusConnection_p,
     GDBusProxyFlags,
     GDBusInterfaceInfo_p,
     c_char_p,
