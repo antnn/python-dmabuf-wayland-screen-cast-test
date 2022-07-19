@@ -149,25 +149,25 @@ class PWStreamEvents(Structure):
 
 ___PW___.pw_thread_loop_new.restype = PWThreadLoopP
 ___PW___.pw_thread_loop_new.argtypes = [c_char_p, SPADictP]
-def pw_thread_loop_new(name: str, props: SPADictP):
+def pw_thread_loop_new(name: str, props: SPADictP) -> PWThreadLoopP:
     return ___PW___.pw_thread_loop_new(name.encode('utf-8'), props)
 
 
 ___PW___.pw_thread_loop_get_loop.restype = PWLoopP
 ___PW___.pw_thread_loop_get_loop.argtypes = [PWThreadLoopP]
-def pw_thread_loop_get_loop(loop: PWThreadLoopP):
+def pw_thread_loop_get_loop(loop: PWThreadLoopP) -> PWLoopP:
     return ___PW___.pw_thread_loop_get_loop(loop)
 
 
 ___PW___.pw_context_new.restype = PWContextP
 ___PW___.pw_context_new.argtypes = [PWLoopP, PWPropertiesP, c_size_t]
-def pw_context_new(main_loop: PWLoopP, props: PWPropertiesP, user_data_size: int):
+def pw_context_new(main_loop: PWLoopP, props: PWPropertiesP, user_data_size: int) -> PWContextP:
     return ___PW___.pw_context_new(main_loop, props, user_data_size)
 
 
 ___PW___.pw_thread_loop_start.restype = c_int
 ___PW___.pw_thread_loop_start.argtypes = [PWThreadLoopP]
-def pw_thread_loop_start(loop: PWThreadLoopP):
+def pw_thread_loop_start(loop: PWThreadLoopP) -> int:
     return ___PW___.pw_thread_loop_start(loop)
 
 
@@ -183,13 +183,13 @@ def pw_thread_loop_lock(loop: PWThreadLoopP):
 
 ___PW___.pw_context_connect.restype = PWCoreP
 ___PW___.pw_context_connect.argtypes = [PWContextP, PWPropertiesP, c_size_t]
-def pw_context_connect(context: PWContextP, properties: PWPropertiesP, userdata_size: int):
+def pw_context_connect(context: PWContextP, properties: PWPropertiesP, userdata_size: int) -> PWCoreP:
     return  ___PW___.pw_context_connect(context, properties, userdata_size)
 
 
 ___PW___.pw_context_connect_fd.restype = PWCoreP
 ___PW___.pw_context_connect_fd.argtypes = [PWContextP, c_int, PWPropertiesP, c_size_t]
-def pw_context_connect_fd(context: PWContextP, fd: int, properties: PWPropertiesP, userdata_size: int):
+def pw_context_connect_fd(context: PWContextP, fd: int, properties: PWPropertiesP, userdata_size: int) -> PWCoreP:
     print("FD",fd)
     return ___PW___.pw_context_connect_fd(context, fd, properties, userdata_size)
 
@@ -200,7 +200,7 @@ def pw_proxy_add_listener(pw_proxy: PWCoreP, listener: SPAHook, events: PWCoreEv
     ___PW___.pw_proxy_add_listener(pw_proxy, byref(listener), byref(events), byref(data))
 
 
-def pw_loop_add_event(pw_loop: PWLoop, user_method: FPOINTER, userdata) -> SPASourceP:
+def pw_loop_add_event(pw_loop: PWLoopP, user_method: FPOINTER, userdata) -> SPASourceP:
     loop: POINTER(PWLoop) = cast(pw_loop.value, POINTER(PWLoop))
     utils: POINTER(SPALoopUtils) = cast(loop.contents.utils, POINTER(SPALoopUtils))
     iface: SPAInterface = utils.contents.iface
@@ -209,7 +209,7 @@ def pw_loop_add_event(pw_loop: PWLoop, user_method: FPOINTER, userdata) -> SPASo
     add_event = CFUNCTYPE(SPASourceP, c_void_p, c_void_p, c_void_p)(_f.contents.add_event)
     return add_event(cb.data, user_method, byref(userdata))
 
-def pw_loop_signal_event(pw_loop: PWLoop, source: SPASourceP) -> int:
+def pw_loop_signal_event(pw_loop: PWLoopP, source: SPASourceP) -> int:
     loop: POINTER(PWLoop) = cast(pw_loop.value, POINTER(PWLoop))
     utils: POINTER(SPALoopUtils) = cast(loop.contents.utils, POINTER(SPALoopUtils))
     iface: SPAInterface = utils.contents.iface
