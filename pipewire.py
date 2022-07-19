@@ -1,10 +1,20 @@
+import sys
+
 from pipewirelib import *
+
 
 class PipewireVersion(Structure):
     _fields_ = [
         ("major", c_int),
         ("minor", c_int),
         ("micro", c_int)]
+
+    @staticmethod
+    def parse(version_string: str):
+        ver = list(map(int, version_string.split('.')))
+        if len(ver) != 3:
+            return
+        return PipewireVersion(*ver)
 
     def ___le___(self, other):
         if not self.major and not self.minor and not self.micro:
@@ -16,53 +26,25 @@ class PipewireVersion(Structure):
             return False
         return (self.major, self.minor, self.micro) >= (other.major, other.minor, other.micro)
 
-class PWCoreEvents(Structure):
-    info_types = [c_void_p, c_void_p]
-    done_types = [c_void_p, c_uint32, c_int]
-    ping_types = [c_void_p, c_uint32, c_int]
-    error_types = [c_void_p, c_uint32, c_int, c_int, c_char_p]
-    removeid_types = [c_void_p, c_uint32]
-    boundid_types = [c_void_p, c_uint32, c_uint32]
-    addmem_types = [c_void_p, c_uint32, c_uint32, c_int, c_uint32]
-    removemem_types = [c_void_p, c_uint32]
-    _fields_ = [
-        ("version", c_int32),
-        ("info", c_void_p),
-        ("done", c_void_p),
-        ("ping", c_void_p),
-        ("error", c_void_p),
-        ("remove_id", c_void_p),
-        ("bound_id", c_void_p),
-        ("add_mem", c_void_p),
-        ("remove_mem", c_void_p),
-    ]
 
-class PWStreamEvents(Structure):
-    destroy_types = [c_void_p]
-    statechanged_types = [c_void_p, c_int, c_int, c_char_p]
-    controlinfo_types = [c_void_p, c_uint32, c_void_p]
-    iochanged_types = [c_void_p, c_uint32, c_void_p, c_uint32]
-    paramchanged_types = [c_void_p, c_uint32, c_void_p]
-    addbuffer_types = [c_void_p, c_void_p]
-    removebuffer_types = [c_void_p, c_void_p]
-    process_types = [c_void_p]
-    drained_types = [c_void_p]
-    command_types = [c_void_p, c_void_p]
-    triggerdone_types = [c_void_p]
-    _fields_ = [
-        ("version", c_int32),
-        ("destroy", c_void_p),
-        ("state_changed", c_void_p),
-        ("control_info", c_void_p),
-        ("io_changed", c_void_p),
-        ("param_changed", c_void_p),
-        ("add_buffer", c_void_p),
-        ("remove_buffer", c_void_p),
-        ("process", c_void_p),
-        ("drained", c_void_p),
-        ("command", c_void_p),
-        ("trigger_done", c_void_p),
-    ]
+@CFUNCTYPE()
+def on_core_info():
+    pass
+@CFUNCTYPE()
+def on_core_done():
+    pass
+@CFUNCTYPE()
+def on_core_error():
+    pass
+@CFUNCTYPE()
+def on_stream_state_changed():
+    pass
+@CFUNCTYPE()
+def on_streamParam_changed():
+    pass
+@CFUNCTYPE()
+def on_stream_process():
+    pass
 
 global pw_stream_node_id_
 global pw_fd_
@@ -71,8 +53,40 @@ def process(pw_fd, pw_stream_node_id):
     width = c_uint32(1920)
     height = c_uint32(1080)
     global pw_stream_node_id_
-    pw_stream_node_id_ = pw_stream_node_id;
+    pw_stream_node_id_ = pw_stream_node_id
     global pw_fd_
     pw_fd_ = pw_fd
     pw_init()
+    pw_main_loop_ = pw_thread_loop_new("pipewire-main-loop", None);
+    pw_context_ = pw_context_new(pw_thread_loop_get_loop(pw_main_loop_), None, 0);
+    if not pw_context_:
+        print("Failed to create PipeWire context", file=sys.stderr)
+        return False
+    if pw_thread_loop_start(pw_main_loop_) < 0:
+        print("Failed to start main PipeWire loop", file=sys.stderr)
+        return False
+    pw_client_version_ = pw_get_library_version()
+    pw_core_events_ = PWCoreEvents()
+    pw_core_events_.version = PW_VERSION_CORE_EVENTS
+    pw_core_events_.info = on_core_info
+    pw_core_events_.done = on_core_done
+    pw_core_events_.error = on_core_error
+
+    pw_stream_events_ = PWStreamEvents()
+    pw_stream_events_.version = PW_VERSION_STREAM_EVENTS
+    pw_stream_events_.state_changed = on_stream_state_changed
+    pw_stream_events_.param_changed = on_streamParam_changed
+    pw_stream_events_.process = on_stream_process
+
+    pw_thread_loop_lock(pw_main_loop_)
+    if not pw_fd_:
+        pw_core_ = pw_context_connect(pw_context_, None, 0)
+    else:
+        pw_core_ = pw_context_connect_fd(pw_context_, pw_fd_, None, 0)
+
+    if not pw_core_:
+        print("Failed to connect PipeWire context", file=sys.stderr)
+        return False;
+
+
 

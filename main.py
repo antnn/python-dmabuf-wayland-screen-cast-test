@@ -12,11 +12,6 @@
 # Framebuffer Format Modifiers https://youtu.be/g5T5wSCXkH4?t=3131
 from portal import portal
 
-from ctypes import *
-
-libc = CDLL("libc.so.6")
-
-
 def main():
     portal()
 
