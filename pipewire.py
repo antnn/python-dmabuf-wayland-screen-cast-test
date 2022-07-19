@@ -103,6 +103,7 @@ def process(pw_fd, pw_stream_node_id):
     pw_proxy_add_listener(pw_core_, spa_core_listener_, pw_core_events_, userdata)
     loop__ = pw_thread_loop_get_loop(pw_main_loop_)
     renegotiate_ = pw_loop_add_event(loop__, on_renegotiate_format, userdata)
+    print("event", renegotiate_)
 
 
 
