@@ -81,10 +81,12 @@ class PWCoreP(c_void_p):
 
 class SPALoopUtilsMethods(Structure):
     _fields_ = [
+        ("version", c_int32),
         ("add_io", c_void_p),
         ("update_io", c_void_p),
         ("add_idle", c_void_p),
         ("enable_idle", c_void_p),
+        ("add_event", c_void_p),
         ("signal_event", c_void_p),
         ("add_timer", c_void_p),
         ("update_timer", c_void_p),
@@ -201,10 +203,14 @@ def pw_proxy_add_listener(pw_proxy: PWCoreP, listener: SPAHook, events: PWCoreEv
 
 
 def pw_loop_add_event(pw_loop: PWLoop, user_method: c_void_p, userdata: c_void_p):
-    loop = POINTER(PWLoop)(pw_loop.value)
+    loop: POINTER(PWLoop) = cast(pw_loop.value, POINTER(PWLoop))
+    utils: POINTER(SPALoopUtils) = cast(loop.contents.utils, POINTER(SPALoopUtils))
+    iface: SPAInterface = utils.contents.iface
+    cb: SPACallbacks = iface.cb
+    _f = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
+    add_event = CFUNCTYPE(None, c_void_p, c_void_p, c_void_p)(_f.contents.add_event)
     pw_get_library_version()
-    utils = POINTER(SPALoopUtils)(loop.contents.utils)
-    print("pw_loop_add", utils)
+    return add_event(cb.data, byref(user_method), byref(userdata))
 
 
 PW_VERSION_CORE_EVENTS = 0
