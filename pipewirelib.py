@@ -78,6 +78,8 @@ class PWLoopP(c_void_p):
 class PWCoreP(c_void_p):
     pass
 
+class SPASourceP(c_void_p):
+    pass
 
 class SPALoopUtilsMethods(Structure):
     _fields_ = [
@@ -208,9 +210,10 @@ def pw_loop_add_event(pw_loop: PWLoop, user_method: c_void_p, userdata: c_void_p
     iface: SPAInterface = utils.contents.iface
     cb: SPACallbacks = iface.cb
     _f = cast(cb.funcs, POINTER(SPALoopUtilsMethods))
-    add_event = CFUNCTYPE(None, c_void_p, c_void_p, c_void_p)(_f.contents.add_event)
-    pw_get_library_version()
+    add_event = CFUNCTYPE(SPASourceP, c_void_p, c_void_p, c_void_p)(_f.contents.add_event)
     return add_event(cb.data, byref(user_method), byref(userdata))
+
+
 
 
 PW_VERSION_CORE_EVENTS = 0
