@@ -208,28 +208,6 @@ def g_dbus_connection_get_unique_name(connection: GDBusConnectionP) -> bytes:
     return ___Gio___.g_dbus_connection_get_unique_name(connection)
 
 
-def ___va___(args, argtypes, *vargs):
-    """Helper function for variable arguments functions"""
-    for arg in vargs:
-        if isinstance(arg, str):
-            arg_ = cast(arg.encode('utf-8'), c_char_p)
-            argtypes.append(c_char_p)
-        elif isinstance(arg, int) or isinstance(arg, c_int):
-            arg_ = arg
-            argtypes.append(c_int)
-        elif isinstance(arg, c_uint32):
-            arg_ = arg
-            argtypes.append(c_uint32)
-        elif isinstance(arg, c_void_p):
-            arg_ = arg
-            argtypes.append(c_void_p)
-        else:
-            arg_ = cast(arg, c_void_p)
-            argtypes.append(c_void_p)
-        args.append(arg_)
-    return args, argtypes
-
-
 ___Gio___.g_variant_builder_new.restype = GVariantBuilderP
 ___Gio___.g_variant_builder_new.argtypes = [GVariantTypeP]
 
@@ -346,7 +324,7 @@ def g_variant_new(format_string: str, *args) -> GVariantP:
 ___Gio___.g_cancellable_new.restype = GCancellableP
 
 
-def g_cancellable_new():
+def g_cancellable_new() -> GCancellableP:
     return ___Gio___.g_cancellable_new()
 
 
@@ -362,7 +340,7 @@ ___Gio___.g_main_loop_run.argtypes = [GMainLoopP]
 
 
 def g_main_loop_run(loop: GMainLoopP):
-    return ___Gio___.g_main_loop_run(loop)
+    ___Gio___.g_main_loop_run(loop)
 
 
 ___Gio___.g_variant_lookup_value.restype = GVariantP
@@ -434,7 +412,7 @@ ___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync.argtypes = [GDBusProxyP,
                                                                GDBusCallFlags,
                                                                c_int,
                                                                GUnixFDListP,
-                                                               GUnixFDListP,
+                                                               POINTER(GUnixFDListP),  # TODO check if it works
                                                                GCancellableP,
                                                                POINTER(POINTER(GError))]
 
@@ -445,7 +423,7 @@ def g_dbus_proxy_call_with_unix_fd_list_sync(proxy: GDBusProxyP,
                                              flags: GDBusCallFlags,
                                              timeout_msec: int,
                                              fd_list: GUnixFDListP,
-                                             out_fd_list: GUnixFDListP,
+                                             out_fd_list: POINTER(GUnixFDListP),
                                              cancellable: GCancellableP) -> Result[GVariantP, GError]:
     error = POINTER(GError)()
     variant = ___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync(proxy, method_name.encode('utf-8'),
@@ -464,7 +442,7 @@ ___Gio___.g_unix_fd_list_get.restype = c_int
 ___Gio___.g_unix_fd_list_get.argtypes = [GUnixFDListP, c_int, POINTER(POINTER(GError))]
 
 
-def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int):
+def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int) -> Result[int, GError]:
     error = POINTER(GError)()
     val = ___Gio___.g_unix_fd_list_get(fdlist, index, byref(error))
     if val is None:
@@ -473,3 +451,27 @@ def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int):
         return Result(error=err)
     else:
         return Result(val)
+
+
+def ___va___(args, argtypes, *vargs):
+    """Helper function for variable arguments functions"""
+    for arg in vargs:
+        if isinstance(arg, str):
+            arg_ = cast(arg.encode('utf-8'), c_char_p)
+            argtypes.append(c_char_p)
+        elif isinstance(arg, int) or isinstance(arg, c_int):
+            arg_ = arg
+            argtypes.append(c_int)
+        elif isinstance(arg, c_uint32):
+            arg_ = arg
+            argtypes.append(c_uint32)
+        elif isinstance(arg, c_void_p):
+            arg_ = arg
+            argtypes.append(c_void_p)
+        else:
+            arg_ = cast(arg, c_void_p)
+            argtypes.append(c_void_p)
+        args.append(arg_)
+    return args, argtypes
+
+
