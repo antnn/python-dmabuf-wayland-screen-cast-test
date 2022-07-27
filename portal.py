@@ -307,13 +307,13 @@ def setup_session_request_handlers(connection_):
 
 def portal():
     global screencast_proxy_
-    connection = g_bus_get_sync(GBusType.G_BUS_TYPE_SESSION)
+    connection = g_bus_get_sync(G_BUS_TYPE_SESSION)
     screencast_proxy = None
     if connection.is_ok():
         global connection_
         connection_ = connection.unwrap_unchecked()
         screencast_proxy = g_dbus_proxy_new_sync(GDBusConnectionP(connection_.value),
-                                                 GDBusProxyFlags.G_DBUS_PROXY_FLAGS_NONE,
+                                                 G_DBUS_PROXY_FLAGS_NONE,
                                                  None, kDesktopBusName, kDesktopPath, scast_iface, None)
         screencast_proxy_ = screencast_proxy.unwrap()
         setup_session_request_handlers(connection_)
