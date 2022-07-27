@@ -13,7 +13,7 @@ scast_iface = 'org.freedesktop.portal.ScreenCast'
 sender_name_ = portal_prefix = "pythonmss"
 
 
-def new_request_path(connection: GDBusConnection_p):
+def new_request_path(connection: GDBusConnectionP):
     token = str(g_dbus_connection_get_unique_name(connection), "utf-8")
     path = req_path
     handle = ('%s/%s/' % (path, token)).replace(":", "").replace(".", "_")
@@ -45,20 +45,20 @@ def prepare_signal_handle(token, connection):
 def setup_request_response_signal(object_path: str,
                                   callback,
                                   user_data: c_void_p,
-                                  connection: GDBusConnection_p):
+                                  connection: GDBusConnectionP):
     return g_dbus_connection_signal_subscribe(connection,
                                               kDesktopBusName, kRequestInterfaceName, "Response",
                                               object_path, None, G_DBUS_SIGNAL_FLAGS_NO_MATCH_RULE,
                                               callback, user_data, None)
 
 
-@CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
-def on_session_closed_signal(connection: GDBusConnection_p,
+@CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, c_void_p)
+def on_session_closed_signal(connection: GDBusConnectionP,
                              sender_name: c_char_p,
                              object_path: c_char_p,
                              interface_name: c_char_p,
                              signal_name: c_char_p,
-                             parameters: GVariant_p,
+                             parameters: GVariantP,
                              user_data: c_void_p):
     print("session is closed")
     exit(0)
@@ -110,7 +110,7 @@ global pw_stream_node_id_
 def open_pipewire_remote():
     print("PIPEWIRE\n")
     builder = g_variant_builder_new(G_VARIANT_TYPE_VARDICT)
-    outlist = c_void_p(0)
+    outlist = GUnixFDListP(0)
     variant = g_dbus_proxy_call_with_unix_fd_list_sync(screencast_proxy_, "OpenPipeWireRemote",
                                                        g_variant_new("(oa{sv})", session_handle_, builder),
                                                        G_DBUS_CALL_FLAGS_NONE, -1, None, byref(outlist), cancellable_)
@@ -127,21 +127,21 @@ def open_pipewire_remote():
         return
     pw_fd_ = pw_fd_.unwrap_unchecked()
     on_portal_done()
-    
 
-@CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
+
+@CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, c_void_p)
 def start_request_response_signal_handler(
-        connection: GDBusConnection_p,
+        connection: GDBusConnectionP,
         sender_name: c_char_p,
         object_path: c_char_p,
         interface_name: c_char_p,
         signal_name: c_char_p,
-        parameters: GVariant_p,
+        parameters: GVariantP,
         user_data: c_void_p):
     print("Start signal received.\n");
     portal_response = c_uint32(0)
-    response_data = c_void_p(0)
-    iter_ = c_void_p(0)
+    response_data = GVariantP(0)
+    iter_ = GVariantIterP(0)
     global restore_token_
     restore_token_ = c_char_p(0);
     g_variant_get(parameters, "(u@a{sv})", byref(portal_response), byref(response_data))
@@ -150,11 +150,11 @@ def start_request_response_signal_handler(
         on_portal_done()
         return
     if g_variant_lookup(response_data, "streams", "a(ua{sv})", byref(iter_)):
-        variant = c_void_p(0)
+        variant = GVariantP(0)
         while g_variant_iter_next(iter_, "@(ua{sv})", byref(variant)):
             stream_id = c_uint32(0)
             type_ = c_uint32(0)
-            options = c_void_p(0)
+            options = GVariantP(0)
             g_variant_get(variant, "(u@a{sv})", byref(stream_id), byref(options))
             if g_variant_lookup(options, "source_type", "u", byref(type_)):
                 capture_source_type = type_
@@ -192,14 +192,14 @@ def on_portal_done():
     pipewire.process(pw_fd_, pw_stream_node_id_)
 
 
-@CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
+@CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, c_void_p)
 def sources_request_response_signal_handler(
-        connection: GDBusConnection_p,
+        connection: GDBusConnectionP,
         sender_name: c_char_p,
         object_path: c_char_p,
         interface_name: c_char_p,
         signal_name: c_char_p,
-        parameters: GVariant_p,
+        parameters: GVariantP,
         user_data: c_void_p):
     portal_response = c_uint32(0)
     g_variant_get(parameters, "(u@a{sv})", byref(portal_response), None);
@@ -253,18 +253,18 @@ def sources_request(session_handle_):
 global session_handle_
 
 
-@CFUNCTYPE(None, GDBusConnection_p, c_char_p, c_char_p, c_char_p, c_char_p, GVariant_p, c_void_p)
+@CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, c_void_p)
 def request_session_response_signal_handler(
-        connection: GDBusConnection_p,
+        connection: GDBusConnectionP,  # passed as int
         sender_name: c_char_p,
         object_path: c_char_p,
         interface_name: c_char_p,
         signal_name: c_char_p,
-        parameters: GVariant_p,
+        parameters: GVariantP,
         user_data: c_void_p):
     portal_response = c_uint32(1)
-    response_data = c_void_p(0)
-    g_variant_get(c_void_p(parameters), "(u@a{sv})", byref(portal_response), byref(response_data))
+    response_data = GVariantP(0)
+    g_variant_get(parameters, "(u@a{sv})", byref(portal_response), byref(response_data))
     g_session_handle = g_variant_lookup_value(response_data, "session_handle", None)
     global session_handle_
     session_handle_ = g_variant_dup_string(g_session_handle, None)
