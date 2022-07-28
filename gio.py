@@ -454,11 +454,15 @@ def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int) -> Result[int, GError]:
         return Result(val)
 
 
+
 def ___va___(args, argtypes, *vargs):
     """Helper function for variable arguments functions"""
     for arg in vargs:
         if isinstance(arg, str):
             arg_ = cast(arg.encode('utf-8'), c_char_p)
+            argtypes.append(c_char_p)
+        elif isinstance(arg, c_char_p):
+            arg_ = arg
             argtypes.append(c_char_p)
         elif isinstance(arg, int) or isinstance(arg, c_int):
             arg_ = arg
@@ -474,5 +478,3 @@ def ___va___(args, argtypes, *vargs):
             argtypes.append(c_void_p)
         args.append(arg_)
     return args, argtypes
-
-
