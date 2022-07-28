@@ -6,6 +6,8 @@ from gio import *
 
 kDesktopBusName = "org.freedesktop.portal.Desktop"
 kRequestInterfaceName = "org.freedesktop.portal.Request"
+kDesktopRequestObjectPath = "/org/freedesktop/portal/desktop/request"
+kSessionInterfaceName = "org.freedesktop.portal.Session"
 kDesktopPath = '/org/freedesktop/portal/desktop'
 req_path = '/org/freedesktop/portal/desktop/request'
 req_iface = 'org.freedesktop.portal.Request'
@@ -111,7 +113,7 @@ def new_session_path():
     return path.encode('utf-8'), token
 
 
-kDesktopRequestObjectPath = "/org/freedesktop/portal/desktop/request"
+
 
 
 def prepare_signal_handle(token, connection):
@@ -143,8 +145,6 @@ def on_session_closed_signal(connection: GDBusConnectionP,
     print("session is closed")
     exit(0)
 
-
-kSessionInterfaceName = "org.freedesktop.portal.Session"
 
 
 def cleanup():
