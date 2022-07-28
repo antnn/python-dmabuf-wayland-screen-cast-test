@@ -1,3 +1,5 @@
+# Adapted code from 
+# https://webrtc.googlesource.com/src/+/93f9db7e8a6f442390bb0ed6a2ffc6fa75b2ae5f/modules/desktop_capture/linux/wayland/
 import ctypes
 import sys
 from random import randrange
@@ -55,12 +57,11 @@ class PipeWireStream(Structure):
     ]
 
 
-
 libc = CDLL("libc.so.6")
 libc.calloc.restype = c_void_p
 def take_str_ownership(str_) -> c_char_p:
     """
-    Prevent string GC
+    Prevent Python string GC. Becasuse Gio multi threading
     """
     size = len(str_)
     if not size:
@@ -70,34 +71,34 @@ def take_str_ownership(str_) -> c_char_p:
         _str_ = str_.encode("utf-8")
     else:
         _str_ = str_
-    buf = c_char_p( libc.calloc(1,size+1) ) # NULL terminated
+    buf = c_char_p(libc.calloc(1, size + 1))  # NULL terminated
     libc.memcpy(buf, _str_, size)
     return buf
 
 
 class Portal(Structure):
     multiple: c_bool
-    capture_mode: CaptureSourceType
+    capture_source_type: CaptureSourceType
     persist_mode: PersistMode
     cursor_mode: CursorMode
     connection: GDBusConnectionP
-    #proxy_request_response_handler: GDBusSignalCallback
-    #sources_request_response_signal_handler: GDBusSignalCallback
+    # proxy_request_response_handler: GDBusSignalCallback
+    # sources_request_response_signal_handler: GDBusSignalCallback
     screencast_proxy: GDBusProxyP
     pw_streams: POINTER(PipeWireStream)
     cancellable: GCancellableP
-    portal_handle: c_char_p # We need array __str_array_p__ of size 5
+    portal_handle: c_char_p  # We need array __str_array_p__ of size 5
     session_handle: c_char_p
     sources_handle: c_char_p
     start_handle: c_char_p
-    restore_token: c_char_p #
+    restore_token: c_char_p  #
     session_request_signal_id: c_int
     sources_request_signal_id: c_int
     start_request_signal_id: c_int
     session_closed_signal_id: c_int
     _fields_ = [
         ("multiple", c_bool),
-        ("capture_mode", c_uint32),
+        ("capture_source_type", c_uint32),
         ("connection", GDBusConnectionP),
         ("screencast_proxy", GDBusProxyP),
         ("pw_streams", POINTER(PipeWireStream)),
@@ -114,8 +115,6 @@ class Portal(Structure):
         ("start_request_signal_id", c_int),
         ("session_closed_signal_id", c_int),
     ]
-
-
 
 
 def new_request_path(connection: GDBusConnectionP):
@@ -229,7 +228,7 @@ def start_request_response_signal_handler(
             g_variant_get(variant, "(u@a{sv})",
                           byref(stream_id), byref(options))
             if g_variant_lookup(options, "source_type", "u", byref(type_)):
-                capture_source_type = type_
+                portal.capture_source_type = type_
             global pw_stream_node_id_
             pw_stream_node_id_ = stream_id
             break
@@ -239,7 +238,7 @@ def start_request_response_signal_handler(
     open_pipewire_remote(portal)
 
 
-def start_request(portal:Portal):
+def start_request(portal: Portal):
     builder = g_variant_builder_new(G_VARIANT_TYPE_VARDICT)
     variant_string = "%s_%d" % (portal_prefix, randrange(0, PLATFORM_C_MAXINT))
     g_variant_builder_add(builder, "{sv}", "handle_token", g_variant_new_string(variant_string))
@@ -271,7 +270,7 @@ def sources_request_response_signal_handler(
         signal_name: c_char_p,
         parameters: GVariantP,
         user_data: c_void_p):
-    portal = user_data.contents #(cast(user_data, POINTER(Portal))).contents
+    portal = user_data.contents  # (cast(user_data, POINTER(Portal))).contents
     portal_response = c_uint32(0)
     g_variant_get(parameters, "(u@a{sv})", byref(portal_response), None)
     if portal_response:
@@ -285,7 +284,7 @@ def sources_request_response_signal_handler(
 def sources_request(portal: Portal):
     builder = g_variant_builder_new(G_VARIANT_TYPE_VARDICT)
     g_variant_builder_add(
-        builder, "{sv}", "types", g_variant_new_uint32(portal.capture_mode))
+        builder, "{sv}", "types", g_variant_new_uint32(portal.capture_source_type))
     g_variant_builder_add(
         builder, "{sv}", "multiple", g_variant_new_boolean(portal.multiple))
     cursor_modes_variant = g_dbus_proxy_get_cached_property(
@@ -343,7 +342,7 @@ def request_session_response_signal_handler(
                   byref(portal_response), byref(response_data))
     g_session_handle = g_variant_lookup_value(
         response_data, "session_handle", None)
-    #res = g_variant_dup_string(g_session_handle, None)
+    # res = g_variant_dup_string(g_session_handle, None)
     portal.session_handle = g_variant_dup_string(g_session_handle, None)
     if len(portal.session_handle) == 0 or portal_response:
         print("Failed to request the session subscription.\n", file=sys.stderr)
@@ -381,12 +380,10 @@ def setup_session_request_handlers(portal: Portal):
         print("Error during call to *CreateSession*\n", file=sys.stderr)
 
 
-
-
 portal_ = Portal()
-portal_.restore_token="".encode("utf-8")
+portal_.restore_token = b""
 portal_.multiple = c_bool(False)
-portal_.capture_mode = CaptureSourceType.kScreen
+portal_.capture_source_type = CaptureSourceType.kScreen
 portal_.cancellable = g_cancellable_new()
 portal_.cursor_mode = CursorMode.kMetadata
 portal_.persist_mode = PersistMode.kTransient
