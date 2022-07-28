@@ -243,9 +243,9 @@ def start_request(portal:Portal):
     builder = g_variant_builder_new(G_VARIANT_TYPE_VARDICT)
     variant_string = "%s_%d" % (portal_prefix, randrange(0, PLATFORM_C_MAXINT))
     g_variant_builder_add(builder, "{sv}", "handle_token", g_variant_new_string(variant_string))
-    start_handle = take_str_ownership(prepare_signal_handle(variant_string, portal.connection))
+    portal.start_handle = take_str_ownership(prepare_signal_handle(variant_string, portal.connection))
     start_request_signal_id = setup_request_response_signal(
-        start_handle, start_request_response_signal_handler, byref(portal), portal.connection)
+        portal.start_handle, start_request_response_signal_handler, byref(portal), portal.connection)
     parent_window = ""
     print("Starting the portal session.\n")
     res = g_dbus_proxy_call_sync(
