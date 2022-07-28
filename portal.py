@@ -9,7 +9,9 @@ from gio import *
 
 kDesktopBusName = "org.freedesktop.portal.Desktop"
 kRequestInterfaceName = "org.freedesktop.portal.Request"
-kDesktopPath = '/org/freedesktop/portal/desktop'
+kDesktopPath = "/org/freedesktop/portal/desktop"
+kDesktopRequestObjectPath = "/org/freedesktop/portal/desktop/request"
+kSessionInterfaceName = "org.freedesktop.portal.Session"
 req_path = '/org/freedesktop/portal/desktop/request'
 req_iface = 'org.freedesktop.portal.Request'
 scast_iface = 'org.freedesktop.portal.ScreenCast'
@@ -58,8 +60,9 @@ class PipeWireStream(Structure):
 
 
 libc = CDLL("libc.so.6")
+libc.free.argtypes=[c_void_p]
 libc.calloc.restype = c_void_p
-def take_str_ownership(str_) -> c_char_p:
+def take_str_ownership(str_) -> POINTER(c_char):
     """
     Prevent Python string GC. Becasuse Gio multi threading
     """
@@ -71,31 +74,31 @@ def take_str_ownership(str_) -> c_char_p:
         _str_ = str_.encode("utf-8")
     else:
         _str_ = str_
-    buf = c_char_p(libc.calloc(1, size + 1))  # NULL terminated
+    buf =cast(libc.calloc(1, size + 1), POINTER(c_char))  # NULL terminated
     libc.memcpy(buf, _str_, size)
     return buf
 
 
 class Portal(Structure):
-    multiple: c_bool
-    capture_source_type: CaptureSourceType
-    persist_mode: PersistMode
-    cursor_mode: CursorMode
-    connection: GDBusConnectionP
+    multiple: c_bool = False
+    capture_source_type: CaptureSourceType = 0
+    persist_mode: PersistMode = 0
+    cursor_mode: CursorMode = 0
+    connection: GDBusConnectionP = None
     # proxy_request_response_handler: GDBusSignalCallback
     # sources_request_response_signal_handler: GDBusSignalCallback
-    screencast_proxy: GDBusProxyP
-    pw_streams: POINTER(PipeWireStream)
-    cancellable: GCancellableP
-    portal_handle: c_char_p  # We need array __str_array_p__ of size 5
-    session_handle: c_char_p
-    sources_handle: c_char_p
-    start_handle: c_char_p
-    restore_token: c_char_p  #
-    session_request_signal_id: c_int
-    sources_request_signal_id: c_int
-    start_request_signal_id: c_int
-    session_closed_signal_id: c_int
+    screencast_proxy: GDBusProxyP = None
+    pw_streams: POINTER(PipeWireStream) = None
+    cancellable: GCancellableP = None
+    portal_handle: POINTER(c_char) = None # Use POINTER(c_char), c_char_p gets coverted to bytes, it is undesired behavour
+    session_handle: POINTER(c_char) = None
+    sources_handle: POINTER(c_char) = None
+    start_handle:  POINTER(c_char) = None
+    restore_token:  POINTER(c_char) = None
+    session_request_signal_id: c_int =0
+    sources_request_signal_id: c_int =0
+    start_request_signal_id: c_int = 0
+    session_closed_signal_id: c_int =0
     _fields_ = [
         ("multiple", c_bool),
         ("capture_source_type", c_uint32),
@@ -105,11 +108,11 @@ class Portal(Structure):
         ("persist_mode", c_uint32),
         ("cancellable", GCancellableP),
         ("cursor_mode", c_uint32),
-        ("portal_handle", c_char_p),
-        ("session_handle", c_char_p),
-        ("sources_handle", c_char_p),
-        ("start_handle", c_char_p),
-        ("restore_token", c_char_p),
+        ("portal_handle", POINTER(c_char)),
+        ("session_handle", POINTER(c_char)),
+        ("sources_handle", POINTER(c_char)),
+        ("start_handle", POINTER(c_char)),
+        ("restore_token", POINTER(c_char)),
         ("session_request_signal_id", c_int),
         ("sources_request_signal_id", c_int),
         ("start_request_signal_id", c_int),
@@ -133,7 +136,6 @@ def new_session_path():
     return path.encode('utf-8'), token
 
 
-kDesktopRequestObjectPath = "/org/freedesktop/portal/desktop/request"
 
 
 def prepare_signal_handle(token, connection):
@@ -162,15 +164,35 @@ def on_session_closed_signal(connection: GDBusConnectionP,
                              parameters: GVariantP,
                              user_data: c_void_p):
     portal = user_data.contents
+    g_dbus_connection_signal_unsubscribe(portal.connection,
+                                       portal.session_closed_signal_id);
     print("session is closed")
-    exit(0)
 
 
-kSessionInterfaceName = "org.freedesktop.portal.Session"
 
+def unsubscribe_handlers(portal: Portal):
+    if portal.start_request_signal_id:
+        g_dbus_connection_signal_unsubscribe(portal.connection, portal.start_request_signal_id);
+        portal.start_request_signal_id = 0;
 
-def cleanup():
-    print("CLEANUP")
+    if portal.sources_request_signal_id:
+        g_dbus_connection_signal_unsubscribe(portal.connection, portal.sources_request_signal_id)
+        portal.sources_request_signal_id = 0;
+  
+    if portal.session_request_signal_id:
+        g_dbus_connection_signal_unsubscribe(portal.connection, portal.session_request_signal_id);
+        portal.session_request_signal_id = 0
+  
+
+def cleanup(portal:Portal):
+    unsubscribe_handlers(portal)
+    libc.free(portal.session_handle)
+    portal.session_handle = None
+    g_object_unref(portal.cancellable)
+    portal.cancellable = None
+    #if (pw_fd_ != -1):
+    #    close(pw_fd_)
+  
 
 
 def open_pipewire_remote(portal: Portal):
@@ -184,18 +206,23 @@ def open_pipewire_remote(portal: Portal):
                                                        None, byref(outlist),
                                                        portal.cancellable)
     if not variant:
-        print("Error getting fd")
+        print("Error getting fd: %s" % (variant.error().message))
     variant = variant.unwrap_unchecked()
     index = c_int32(0)
     g_variant_get(variant, "(h)", byref(index))
     global pw_fd_
     pw_fd_ = g_unix_fd_list_get(outlist, index)
     if pw_fd_ == -1 or pw_fd_.error():
-        print("Error: %s", pw_fd_.error(), file=sys.stderr)
+        print("Error: %s", pw_fd_.error().message, file=sys.stderr)
         cleanup()
+        #g_variant_unref(variant)
+        #g_variant_builder_unref(builder)
         return
     pw_fd_ = pw_fd_.unwrap_unchecked()
+    #g_variant_unref(variant)
+    #g_variant_builder_unref(builder)
     on_portal_done(portal)
+
 
 
 @CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, POINTER(Portal))
@@ -216,8 +243,8 @@ def start_request_response_signal_handler(
     g_variant_get(parameters, "(u@a{sv})",
                   byref(portal_response), byref(response_data))
     if portal_response or not response_data:
-        print("Failed to start the screen cast session.", file=sys.stderr)
-        on_portal_done()
+        #print("Failed to start the screen cast session: ", file=sys.stderr)
+        on_portal_done(portal, "Failed to start the screen cast session:")
         return
     if g_variant_lookup(response_data, "streams", "a(ua{sv})", byref(iter_)):
         variant = GVariantP(0)
@@ -235,6 +262,7 @@ def start_request_response_signal_handler(
     # TODO possible memory leak (char*)
     if g_variant_lookup(response_data, "restore_token", "s", byref(restore_token)):
         portal.pw_streams
+    #g_variant_unref(response_data)
     open_pipewire_remote(portal)
 
 
@@ -253,12 +281,18 @@ def start_request(portal: Portal):
         G_DBUS_CALL_FLAGS_NONE, -1, portal.cancellable)
     if not res:
         print("Error", file=sys.stderr)
+        g_variant_builder_unref(builder)
         exit(-1)
+    #g_variant_unref(res.unwrap_unchecked())
+    g_variant_builder_unref(builder)
 
 
 def on_portal_done(portal: Portal, error=None):
-    print("TODO handle streams and erros")
-    # pipewire.process(portal.pw_fd, portal.pw_stream_node_id_)
+    if error:
+        cleanup(portal)
+        return
+    print("TODO handle streams")
+    #pipewire.process(portal.pw_fd, portal.pw_stream_node_id)
 
 
 @CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, POINTER(Portal))
@@ -323,7 +357,9 @@ def sources_request(portal: Portal):
         g_variant_new("(oa{sv})", portal.session_handle, builder),
         G_DBUS_CALL_FLAGS_NONE, -1, portal.cancellable)
     if not result:
+        g_variant_builder_unref(builder)
         exit(-1)
+    g_variant_builder_unref(builder)
 
 
 @CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, POINTER(Portal))
@@ -344,14 +380,17 @@ def request_session_response_signal_handler(
         response_data, "session_handle", None)
     # res = g_variant_dup_string(g_session_handle, None)
     portal.session_handle = g_variant_dup_string(g_session_handle, None)
-    if len(portal.session_handle) == 0 or portal_response:
+    res_str = cast(portal.session_handle, c_char_p).value
+    if len(res_str) == 0 or portal_response:
         print("Failed to request the session subscription.\n", file=sys.stderr)
         # OnPortalDone(RequestResponse::kError);
+        
         return
     portal.session_closed_signal_id = g_dbus_connection_signal_subscribe(
         connection, kDesktopBusName, kSessionInterfaceName, "Closed",
         portal.session_handle, None, G_DBUS_SIGNAL_FLAGS_NONE,
         on_session_closed_signal, user_data, None)
+    #g_variant_unref(response_data)
     sources_request(portal)
 
 
@@ -378,10 +417,13 @@ def setup_session_request_handlers(portal: Portal):
                                  G_DBUS_CALL_FLAGS_NONE, -1, portal.cancellable)
     if res.error():
         print("Error during call to *CreateSession*\n", file=sys.stderr)
+        #g_variant_unref(variant)
+        #g_variant_builder_unref(builder)
+    g_variant_builder_unref(builder)
 
 
 portal_ = Portal()
-portal_.restore_token = b""
+#portal_.restore_token = b""
 portal_.multiple = c_bool(False)
 portal_.capture_source_type = CaptureSourceType.kScreen
 portal_.cancellable = g_cancellable_new()

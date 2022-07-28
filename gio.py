@@ -125,10 +125,12 @@ class Result(Generic[T, E]):
     def error(self):
         return self._error
 
+class GError(object):
+    pass
 
-class GError(Structure):
-    def todict(self):
-        obj = {"domain": self.domain, "code": self.code, "message": self.message}
+class _GError(Structure):
+    def todict(self) -> GError:
+        obj = GError({"domain": self.domain, "code": self.code, "message": self.message})
         return obj
 
     _fields_ = [
@@ -138,21 +140,21 @@ class GError(Structure):
 
 
 ___Gio___.g_error_free.restype = None
-___Gio___.g_error_free.argtypes = [POINTER(GError)]
+___Gio___.g_error_free.argtypes = [POINTER(_GError)]
 
 
-def g_error_free(error: POINTER(GError)):
+def g_error_free(error: POINTER(_GError)):
     ___Gio___.g_error_free(error)
 
 
 ___Gio___.g_bus_get_sync.restype = GDBusConnectionP
 ___Gio___.g_bus_get_sync.argtypes = [GBusType, GCancellableP,
-                                     POINTER(POINTER(GError))]
+                                     POINTER(POINTER(_GError))]
 
 
 def g_bus_get_sync(bus_type: GBusType,
                    cancellable=None) -> Result[GDBusConnectionP, GError]:
-    error = POINTER(GError)()
+    error = POINTER(_GError)()
     val: GDBusConnectionP = ___Gio___.g_bus_get_sync(bus_type, cancellable, byref(error))
     if val is None:
         err = error.contents
@@ -171,7 +173,7 @@ ___Gio___.g_dbus_proxy_new_sync.argtypes = [GDBusConnectionP,
                                             c_char_p,
                                             c_char_p,
                                             GCancellableP,
-                                            POINTER(POINTER(GError))]
+                                            POINTER(POINTER(_GError))]
 
 
 def g_dbus_proxy_new_sync(connection: GDBusConnectionP,
@@ -181,7 +183,7 @@ def g_dbus_proxy_new_sync(connection: GDBusConnectionP,
                           object_path: str,
                           interface_name: str,
                           cancellable: GCancellableP = None) -> Result[GDBusProxyP, GError]:
-    error = POINTER(GError)()
+    error = POINTER(_GError)()
     proxy: GDBusProxyP = ___Gio___.g_dbus_proxy_new_sync(
         connection,
         flags,
@@ -206,6 +208,11 @@ ___Gio___.g_dbus_connection_get_unique_name.argtypes = [GDBusConnectionP]
 def g_dbus_connection_get_unique_name(connection: GDBusConnectionP) -> bytes:
     # Do not free const gchar * returned by this function
     return ___Gio___.g_dbus_connection_get_unique_name(connection)
+
+
+___Gio___.g_variant_builder_unref.argtypes=[GVariantBuilderP]
+def g_variant_builder_unref(builder: GVariantBuilderP): 
+    ___Gio___.g_variant_builder_unref(builder)
 
 
 ___Gio___.g_variant_builder_new.restype = GVariantBuilderP
@@ -289,7 +296,7 @@ ___Gio___.g_dbus_proxy_call_sync.argtypes = [GDBusProxyP,
                                              GDBusCallFlags,
                                              c_int,
                                              GCancellableP,
-                                             POINTER(POINTER(GError))]
+                                             POINTER(POINTER(_GError))]
 
 
 def g_dbus_proxy_call_sync(proxy: GDBusProxyP,
@@ -298,7 +305,7 @@ def g_dbus_proxy_call_sync(proxy: GDBusProxyP,
                            flags: GDBusCallFlags,
                            timeout_msec: int,
                            cancellable: GCancellableP) -> Result[GVariantP, GError]:
-    error = POINTER(GError)()
+    error = POINTER(_GError)()
     variant = ___Gio___.g_dbus_proxy_call_sync(proxy, method_name.encode('utf-8'),
                                                parameters, flags, timeout_msec, cancellable,
                                                byref(error))
@@ -308,6 +315,11 @@ def g_dbus_proxy_call_sync(proxy: GDBusProxyP,
         return Result(error=err)
     else:
         return Result(variant)
+
+
+___Gio___.g_variant_unref.argtypes=[GVariantP]
+def g_variant_unref(value: GVariantP):
+    ___Gio___.g_variant_unref(value)
 
 
 ___Gio___.g_variant_new.restype = GVariantP
@@ -357,7 +369,7 @@ ___Gio___.g_variant_dup_string.argtypes = [GVariantP, POINTER(c_ulong)]
 
 def g_variant_dup_string(value: GVariantP, length: POINTER(c_ulong)) -> c_char_p:
     # Do not edit Python implicitly converts it to copy bytes array and frees the copy
-    return cast(___Gio___.g_variant_dup_string(value, length), c_char_p)
+    return cast(___Gio___.g_variant_dup_string(value, length),  POINTER(c_char))
 
 
 ___Gio___.g_variant_new_uint32.restype = GVariantP
@@ -415,7 +427,7 @@ ___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync.argtypes = [GDBusProxyP,
                                                                GUnixFDListP,
                                                                POINTER(GUnixFDListP),  # TODO check if it works
                                                                GCancellableP,
-                                                               POINTER(POINTER(GError))]
+                                                               POINTER(POINTER(_GError))]
 
 
 def g_dbus_proxy_call_with_unix_fd_list_sync(proxy: GDBusProxyP,
@@ -426,7 +438,7 @@ def g_dbus_proxy_call_with_unix_fd_list_sync(proxy: GDBusProxyP,
                                              fd_list: GUnixFDListP,
                                              out_fd_list: POINTER(GUnixFDListP),
                                              cancellable: GCancellableP) -> Result[GVariantP, GError]:
-    error = POINTER(GError)()
+    error = POINTER(_GError)()
     variant = ___Gio___.g_dbus_proxy_call_with_unix_fd_list_sync(proxy, method_name.encode('utf-8'),
                                                                  parameters, flags,
                                                                  timeout_msec, fd_list, out_fd_list,
@@ -440,11 +452,11 @@ def g_dbus_proxy_call_with_unix_fd_list_sync(proxy: GDBusProxyP,
 
 
 ___Gio___.g_unix_fd_list_get.restype = c_int
-___Gio___.g_unix_fd_list_get.argtypes = [GUnixFDListP, c_int, POINTER(POINTER(GError))]
+___Gio___.g_unix_fd_list_get.argtypes = [GUnixFDListP, c_int, POINTER(POINTER(_GError))]
 
 
 def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int) -> Result[int, GError]:
-    error = POINTER(GError)()
+    error = POINTER(_GError)()
     val = ___Gio___.g_unix_fd_list_get(fdlist, index, byref(error))
     if val is None:
         err = error.contents.todict()
@@ -453,6 +465,14 @@ def g_unix_fd_list_get(fdlist: GUnixFDListP, index: int) -> Result[int, GError]:
     else:
         return Result(val)
 
+___Gio___.g_dbus_connection_signal_unsubscribe.argtypes = [GDBusConnectionP, c_uint]
+def g_dbus_connection_signal_unsubscribe(connection:GDBusConnectionP, subscription_id:c_uint):
+    ___Gio___.g_dbus_connection_signal_unsubscribe(connection,subscription_id)
+
+
+___Gio___.g_object_unref.argtypes = [c_void_p]
+def g_object_unref (object: c_void_p):
+    ___Gio___.g_object_unref(object)
 
 
 def ___va___(args, argtypes, *vargs):
