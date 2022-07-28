@@ -55,8 +55,8 @@ class PipeWireStream(Structure):
     ]
 
 
-
-str_array_t = 5 * c_char_p
+str_array_size = 5
+str_array_t = str_array_size * c_char_p
 libc = CDLL("libc.so.6")
 libc.calloc.restype = c_void_p
 def take_str_ownership(dst: str_array_t, src: bytes) -> c_char_p:
@@ -98,7 +98,7 @@ class Portal(Structure):
     sources_request_signal_id: c_int
     start_request_signal_id: c_int
     session_closed_signal_id: c_int
-    __str_array_p__: str_array_t = str_array_t(5)
+    __str_array_p__: str_array_t = str_array_t(str_array_size)
     def __setattr__(self, name: str, value):
         if isinstance(value, c_char_p) or isinstance(value, bytes):
             val = take_str_ownership(self.__str_array_p__, value)
