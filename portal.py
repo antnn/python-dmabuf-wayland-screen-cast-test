@@ -308,7 +308,7 @@ def sources_request(portal: Portal):
 
 @CFUNCTYPE(None, GDBusConnectionP, c_char_p, c_char_p, c_char_p, c_char_p, GVariantP, c_void_p)
 def request_session_response_signal_handler(
-        connection: GDBusConnectionP,  # passed as int
+        connection: GDBusConnectionP,
         sender_name: c_char_p,
         object_path: c_char_p,
         interface_name: c_char_p,
