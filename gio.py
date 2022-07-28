@@ -268,7 +268,7 @@ def g_dbus_connection_signal_subscribe(connection: GDBusConnectionP,
                                                         sender.encode('utf-8'),
                                                         interface_name.encode('utf-8'),
                                                         member.encode('utf-8'),
-                                                        object_path.encode('utf-8'),
+                                                        object_path,
                                                         arg0_, flags, callback, user_data,
                                                         user_data_free_func)
 
@@ -351,12 +351,13 @@ def g_variant_lookup_value(dictionary: GVariantP, key: str, expected_type: GVari
     return ___Gio___.g_variant_lookup_value(dictionary, key.encode('utf-8'), expected_type)
 
 
-___Gio___.g_variant_dup_string.restype = c_char_p
+___Gio___.g_variant_dup_string.restype = POINTER(c_char)
 ___Gio___.g_variant_dup_string.argtypes = [GVariantP, POINTER(c_ulong)]
 
 
-def g_variant_dup_string(value: GVariantP, length: POINTER(c_ulong)) -> bytes:
-    return ___Gio___.g_variant_dup_string(value, length).decode('utf-8')
+def g_variant_dup_string(value: GVariantP, length: POINTER(c_ulong)) -> c_char_p:
+    # Do not edit Python implicitly converts it to copy bytes array and frees the copy
+    return cast(___Gio___.g_variant_dup_string(value, length), c_char_p)
 
 
 ___Gio___.g_variant_new_uint32.restype = GVariantP
